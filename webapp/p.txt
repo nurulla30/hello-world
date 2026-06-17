@@ -1,1 +1,38 @@
+RG=""
+APIM=""
 
+NEW_HOSTNAME=""
+NEW_KV_SECRET_ID=""
+
+Check current hostname config:
+
+az apim show \
+  --resource-group "$RG" \
+  --name "$APIM" \
+  --query "hostnameConfigurations" \
+  -o json
+
+Create updated JSON by appending new gateway hostname:
+
+az apim show \
+  --resource-group "$RG" \
+  --name "$APIM" \
+  --query "hostnameConfigurations" \
+  -o json > current-hostnames.json
+
+jq --arg host "$NEW_HOSTNAME" \
+   --arg kv "$NEW_KV_SECRET_ID" \
+   '. + [{
+      "type": "Proxy",
+      "hostName": $host,
+      "keyVaultId": $kv,
+      "negotiateClientCertificate": false,
+      "defaultSslBinding": false
+   }]' current-hostnames.json > updated-hostnames.json
+
+Apply it:
+
+az apim update \
+  --resource-group "$RG" \
+  --name "$APIM" \
+  --set hostnameConfigurations=@updated-hostnames.json
